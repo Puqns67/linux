@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright (c) 2016  Texas Instruments Inc.
+ */
+
+#ifndef _TAS255X_H
+#define _TAS255X_H
+
+/* B0P0R4 - TAS255X_POWER_CTRL1_REG */
+#define TAS255X_SW_SHUTDOWN			BIT(0)
+#define TAS255X_MADC_POWER_UP			BIT(3)
+#define TAS255X_MDAC_POWER_UP			BIT(4)
+#define TAS255X_NDIV_POWER_UP			BIT(5)
+#define TAS255X_PLL_POWER_UP			BIT(6)
+#define TAS255X_DSP_POWER_UP			BIT(7)
+
+/* B0P0R5 - TAS255X_POWER_CTRL2_REG */
+#define TAS255X_VSENSE_ENABLE			BIT(0)
+#define TAS255X_ISENSE_ENABLE			BIT(1)
+#define TAS255X_BOOST_ENABLE			BIT(5)
+#define TAS255X_CLASSD_ENABLE			BIT(7)
+
+/* B0P0R7 - TAS255X_MUTE_REG */
+#define TAS255X_CLASSD_MUTE			BIT(0)
+#define TAS255X_ISENSE_MUTE			BIT(1)
+
+#endif /* _TAS255X_H */

@@ -128,6 +128,7 @@ patternProperties:
                 # MI2S DAI ID range PRIMARY_MI2S_RX - QUATERNARY_MI2S_TX and
                 # QUINARY_MI2S_RX - QUINARY_MI2S_TX and
                 # LPI_MI2S_RX_0 - LPI_MI2S_TX_6
+                # INT0_MI2S_RX - INT6_MI2S_TX
                 items:
                   oneOf:
                     - minimum: 16
@@ -136,6 +137,8 @@ patternProperties:
                       maximum: 128
                     - minimum: 137
                       maximum: 152
+                    - minimum: 153
+                      maximum: 166
         then:
           required:
             - qcom,sd-lines

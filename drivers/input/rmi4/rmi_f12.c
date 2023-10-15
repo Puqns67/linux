@@ -253,6 +253,41 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1, u32 size)
 		rmi_2d_sensor_abs_report(sensor, &sensor->objs[i], i);
 }
 
+static void rmi_f12_set_hardcoded_desc(struct rmi_function *fn, struct f12_data *f12)
+{
+	struct rmi_2d_sensor *sensor = &f12->sensor;
+	struct rmi_register_desc_item *reg_desc;
+
+	/* We have no f12->data_reg_desc, so the pkt_size is 0, override it with
+	 * a somewhat sensible default (this corresponds to 10 fingers).
+	 */
+	sensor->pkt_size = 88;
+
+	/*
+	 * There are no register descriptors to get these values from.
+	 * We set them to high values to either be overwritten by the clip
+	 * properties from devicetree, or to just not get in the way.
+	 */
+	sensor->max_x = 65535;
+	sensor->max_y = 65535;
+
+	/*
+	 * Create the Data1 register descriptor so that touch events
+	 * can work properly.
+	 */
+	reg_desc = devm_kcalloc(&fn->dev, 1,
+			sizeof(struct rmi_register_desc_item), GFP_KERNEL);
+	reg_desc->reg = 1;
+	reg_desc->reg_size = 80;
+	reg_desc->num_subpackets = 10;
+
+	f12->data1 = reg_desc;
+	f12->data1_offset = 0;
+	sensor->nbr_fingers = reg_desc->num_subpackets;
+	sensor->report_abs = 1;
+	sensor->attn_size += reg_desc->reg_size;
+}
+
 static irqreturn_t rmi_f12_attention(int irq, void *ctx)
 {
 	struct rmi_function *fn = ctx;
@@ -384,12 +419,17 @@ static int rmi_f12_sensor_init(struct rmi_function *fn, struct f12_data *f12)
 
 	sensor->fn = fn;
 	f12->data_addr = fn->fd.data_base_addr;
-	pkt_size = rmi_register_desc_calc_size(&f12->data_reg_desc);
-	if (pkt_size > SZ_1M) {
-		dev_err(&fn->dev, "Invalid data packet size: %zu\n", pkt_size);
-		return -EINVAL;
+	/* On quirky devices that don't have a data_reg_desc we hardcode the packet
+	 * in rmi_f12_set_hardcoded_desc(). Make sure not to set it to 0 here.
+	 */
+	if (!sensor->pkt_size) {
+		pkt_size = rmi_register_desc_calc_size(&f12->data_reg_desc);
+		if (pkt_size > SZ_1M) {
+			dev_err(&fn->dev, "Invalid data packet size: %zu\n", pkt_size);
+			return -EINVAL;
+		}
+		sensor->pkt_size = pkt_size;
 	}
-	sensor->pkt_size = pkt_size;
 
 	sensor->axis_align = f12->sensor_pdata.axis_align;
 
@@ -423,6 +463,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	size_t data_offset = 0;
 	int irq_mask_size;
 	int i;
+	bool hardcoded_desc_quirk = false;
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s\n", __func__);
 
@@ -437,15 +478,17 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	++query_addr;
 
 	if (!(buf & BIT(0))) {
-		dev_err(&fn->dev,
-			"Behavior of F12 without register descriptors is undefined.\n");
-		return -ENODEV;
+		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+			"No register descriptors defined for F12, using fallback\n");
+		hardcoded_desc_quirk = true;
 	}
 
 	f12 = devm_kzalloc(&fn->dev, struct_size(f12, irq_mask, irq_mask_size * 2),
 			   GFP_KERNEL);
 	if (!f12)
 		return -ENOMEM;
+
+	dev_set_drvdata(&fn->dev, f12);
 
 	set_bit(fn->irq_pos, f12->irq_mask);
 	set_bit(fn->irq_pos + 1, f12->irq_mask + irq_mask_size);
@@ -460,17 +503,25 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		f12->sensor_pdata = pdata->sensor_pdata;
 	}
 
+	sensor = &f12->sensor;
+
+	if (hardcoded_desc_quirk) {
+		rmi_f12_set_hardcoded_desc(fn, f12);
+
+		ret = rmi_f12_sensor_init(fn, f12);
+		if (ret)
+			return ret;
+
+		goto skip_register_desc;
+	}
+
 	ret = rmi_f12_read_register_descs(fn, f12, query_addr);
 	if (ret)
 		return ret;
 
-	sensor = &f12->sensor;
-
 	ret = rmi_f12_sensor_init(fn, f12);
 	if (ret)
 		return ret;
-
-	dev_set_drvdata(&fn->dev, f12);
 
 	ret = rmi_f12_read_sensor_tuning(f12);
 	if (ret)
@@ -541,6 +592,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		data_offset += item->reg_size;
 	}
 
+skip_register_desc:
 	/* allocate the in-kernel tracking buffers */
 	sensor->tracking_pos = devm_kcalloc(&fn->dev, sensor->nbr_fingers,
 					    sizeof(*sensor->tracking_pos),

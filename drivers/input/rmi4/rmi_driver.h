@@ -49,6 +49,13 @@ struct pdt_entry {
 #define RMI_REG_DESC_PRESENCE_BITS	(32 * BITS_PER_BYTE)
 #define RMI_REG_DESC_PRESENCE_REGS_MAX	(3 + RMI_REG_DESC_PRESENCE_BITS / 8)
 #define RMI_REG_DESC_SUBPACKET_BITS	(37 * BITS_PER_BYTE)
+#define RMI_PDT_MAX 0x55
+
+struct pdt_scan_state {
+	u8 empty_pages;
+	bool pdts[RMI_PDT_MAX + 1];
+};
+
 
 /* describes a single packet register */
 struct rmi_register_desc_item {

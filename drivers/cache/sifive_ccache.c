@@ -53,7 +53,7 @@
 #define SIFIVE_CCACHE_MAX_ECCINTR 4
 #define SIFIVE_CCACHE_LINE_SIZE 64
 
-static void __iomem *ccache_base;
+static struct sifive_ccache ccache;
 static int g_irq[SIFIVE_CCACHE_MAX_ECCINTR];
 static struct riscv_cacheinfo_ops ccache_cache_ops;
 static int level;
@@ -81,7 +81,7 @@ static ssize_t ccache_write(struct file *file, const char __user *data,
 	if (kstrtouint_from_user(data, count, 0, &val))
 		return -EINVAL;
 	if ((val < 0xFF) || (val >= 0x10000 && val < 0x100FF))
-		writel(val, ccache_base + SIFIVE_CCACHE_ECCINJECTERR);
+		writel(val, ccache.base + SIFIVE_CCACHE_ECCINJECTERR);
 	else
 		return -EINVAL;
 	return count;
@@ -106,14 +106,14 @@ static void ccache_config_read(void)
 {
 	u32 cfg;
 
-	cfg = readl(ccache_base + SIFIVE_CCACHE_CONFIG);
+	cfg = readl(ccache.base + SIFIVE_CCACHE_CONFIG);
 	pr_info("%llu banks, %llu ways, sets/bank=%llu, bytes/block=%llu\n",
 		FIELD_GET(SIFIVE_CCACHE_CONFIG_BANK_MASK, cfg),
 		FIELD_GET(SIFIVE_CCACHE_CONFIG_WAYS_MASK, cfg),
 		BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_SETS_MASK, cfg)),
 		BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_BLKS_MASK, cfg)));
 
-	cfg = readl(ccache_base + SIFIVE_CCACHE_WAYENABLE);
+	cfg = readl(ccache.base + SIFIVE_CCACHE_WAYENABLE);
 	pr_info("Index of the largest way enabled: %u\n", cfg);
 }
 
@@ -153,9 +153,9 @@ static void ccache_flush_range(phys_addr_t start, size_t len)
 	for (line = ALIGN_DOWN(start, SIFIVE_CCACHE_LINE_SIZE); line < end;
 			line += SIFIVE_CCACHE_LINE_SIZE) {
 #ifdef CONFIG_32BIT
-		writel(line >> 4, ccache_base + SIFIVE_CCACHE_FLUSH32);
+		writel(line >> 4, ccache.base + SIFIVE_CCACHE_FLUSH32);
 #else
-		writeq(line, ccache_base + SIFIVE_CCACHE_FLUSH64);
+		writeq(line, ccache.base + SIFIVE_CCACHE_FLUSH64);
 #endif
 		mb();
 	}
@@ -170,7 +170,7 @@ static const struct riscv_nonstd_cache_ops ccache_mgmt_ops __initconst = {
 
 static int ccache_largest_wayenabled(void)
 {
-	return readl(ccache_base + SIFIVE_CCACHE_WAYENABLE) & 0xFF;
+	return readl(ccache.base + SIFIVE_CCACHE_WAYENABLE) & 0xFF;
 }
 
 static ssize_t number_of_ways_enabled_show(struct device *dev,
@@ -206,41 +206,41 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 	unsigned int add_h, add_l;
 
 	if (irq == g_irq[DIR_CORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_LOW);
+		add_h = readl(ccache.base + SIFIVE_CCACHE_DIRECCFIX_HIGH);
+		add_l = readl(ccache.base + SIFIVE_CCACHE_DIRECCFIX_LOW);
 		pr_err("DirError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DirError interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_COUNT);
+		readl(ccache.base + SIFIVE_CCACHE_DIRECCFIX_COUNT);
 		atomic_notifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_CE,
 					   "DirECCFix");
 	}
 	if (irq == g_irq[DIR_UNCORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_LOW);
+		add_h = readl(ccache.base + SIFIVE_CCACHE_DIRECCFAIL_HIGH);
+		add_l = readl(ccache.base + SIFIVE_CCACHE_DIRECCFAIL_LOW);
 		/* Reading this register clears the DirFail interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_COUNT);
+		readl(ccache.base + SIFIVE_CCACHE_DIRECCFAIL_COUNT);
 		atomic_notifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_UE,
 					   "DirECCFail");
 		panic("CCACHE: DirFail @ 0x%08X.%08X\n", add_h, add_l);
 	}
 	if (irq == g_irq[DATA_CORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_LOW);
+		add_h = readl(ccache.base + SIFIVE_CCACHE_DATECCFIX_HIGH);
+		add_l = readl(ccache.base + SIFIVE_CCACHE_DATECCFIX_LOW);
 		pr_err("DataError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataError interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_COUNT);
+		readl(ccache.base + SIFIVE_CCACHE_DATECCFIX_COUNT);
 		atomic_notifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_CE,
 					   "DatECCFix");
 	}
 	if (irq == g_irq[DATA_UNCORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_LOW);
+		add_h = readl(ccache.base + SIFIVE_CCACHE_DATECCFAIL_HIGH);
+		add_l = readl(ccache.base + SIFIVE_CCACHE_DATECCFAIL_LOW);
 		pr_err("DataFail @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataFail interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_COUNT);
+		readl(ccache.base + SIFIVE_CCACHE_DATECCFAIL_COUNT);
 		atomic_notifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_UE,
 					   "DatECCFail");
@@ -298,8 +298,8 @@ static int __init sifive_ccache_init(void)
 
 	quirks = (uintptr_t)match->data;
 
-	ccache_base = of_iomap(np, 0);
-	if (!ccache_base) {
+	ccache.base = of_iomap(np, 0);
+	if (!ccache.base) {
 		rc = -ENOMEM;
 		goto err_node_put;
 	}
@@ -335,7 +335,7 @@ static int __init sifive_ccache_init(void)
 	return 0;
 
 err_unmap:
-	iounmap(ccache_base);
+	iounmap(ccache.base);
 err_node_put:
 	of_node_put(np);
 	return rc;

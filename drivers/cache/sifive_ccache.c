@@ -288,7 +288,6 @@ static struct platform_driver sifive_ccache_driver = {
 static int __init sifive_ccache_init(void)
 {
 	struct device_node *np;
-	struct resource res;
 	const struct of_device_id *match;
 	unsigned long quirks __maybe_unused;
 	int rc;
@@ -299,12 +298,7 @@ static int __init sifive_ccache_init(void)
 
 	quirks = (uintptr_t)match->data;
 
-	if (of_address_to_resource(np, 0, &res)) {
-		rc = -ENODEV;
-		goto err_node_put;
-	}
-
-	ccache_base = ioremap(res.start, resource_size(&res));
+	ccache_base = of_iomap(np, 0);
 	if (!ccache_base) {
 		rc = -ENOMEM;
 		goto err_node_put;

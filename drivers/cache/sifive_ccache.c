@@ -9,6 +9,7 @@
 #define pr_fmt(fmt) "CCACHE: " fmt
 
 #include <linux/align.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
@@ -249,6 +250,39 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 	return IRQ_HANDLED;
 }
 
+static void sifive_ccache_del_aux_dev(void *adev)
+{
+	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
+}
+
+static int sifive_ccache_add_aux_dev(struct device *dev, struct auxiliary_device *adev,
+				     const char *name)
+{
+	int rc;
+
+	adev->dev.parent = dev;
+	adev->name = name;
+
+	rc = auxiliary_device_init(adev);
+	if (rc)
+		return rc;
+
+	rc = auxiliary_device_add(adev);
+	if (rc)
+		goto err_uninit;
+
+	rc = devm_add_action_or_reset(dev, sifive_ccache_del_aux_dev, adev);
+	if (rc)
+		return rc;
+
+	return 0;
+
+err_uninit:
+	auxiliary_device_uninit(adev);
+	return rc;
+}
+
 static int sifive_ccache_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -273,6 +307,14 @@ static int sifive_ccache_probe(struct platform_device *pdev)
 		if (rc)
 			return dev_err_probe(dev, rc, "Could not request IRQ %d\n", g_irq[i]);
 	}
+
+	rc = sifive_ccache_add_aux_dev(dev, &ccache.edac_dev, "edac");
+	if (rc)
+		return rc;
+
+	rc = sifive_ccache_add_aux_dev(dev, &ccache.pmu_dev, "pmu");
+	if (rc)
+		return rc;
 
 	return 0;
 }

@@ -16,16 +16,16 @@
 #include <linux/pci-epf.h>
 
 /**
- * dw_pcie_ep_init_notify - Notify EPF drivers about EPC initialization complete
+ * dw_pcie_ep_linkup - Notify EPF drivers about Link Up event
  * @ep: DWC EP device
  */
-void dw_pcie_ep_init_notify(struct dw_pcie_ep *ep)
+void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 {
 	struct pci_epc *epc = ep->epc;
 
-	pci_epc_init_notify(epc);
+	pci_epc_linkup(epc);
 }
-EXPORT_SYMBOL_GPL(dw_pcie_ep_init_notify);
+EXPORT_SYMBOL_GPL(dw_pcie_ep_linkup);
 
 /**
  * dw_pcie_ep_get_func_from_ep - Get the struct dw_pcie_ep_func corresponding to

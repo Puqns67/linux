@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 11
 SUBLEVEL = 0
-EXTRAVERSION = -rc6-azusa1
+EXTRAVERSION = -rc6-azusa2
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*

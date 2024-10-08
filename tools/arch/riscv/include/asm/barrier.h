@@ -10,8 +10,17 @@
 #ifndef _TOOLS_LINUX_ASM_RISCV_BARRIER_H
 #define _TOOLS_LINUX_ASM_RISCV_BARRIER_H
 
-#include <asm/fence.h>
 #include <linux/compiler.h>
+
+/* Inline asm/fence.h */
+#ifndef _ASM_RISCV_FENCE_H
+#define _ASM_RISCV_FENCE_H
+
+#define RISCV_FENCE_ASM(p, s)		"\tfence " #p "," #s "\n"
+#define RISCV_FENCE(p, s) \
+	({ __asm__ __volatile__ (RISCV_FENCE_ASM(p, s) : : : "memory"); })
+
+#endif	/* _ASM_RISCV_FENCE_H */
 
 /* These barriers need to enforce ordering on both devices and memory. */
 #define mb()		RISCV_FENCE(iorw, iorw)

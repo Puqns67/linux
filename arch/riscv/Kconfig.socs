@@ -54,6 +54,7 @@ config ARCH_THEAD
 	depends on MMU && !XIP_KERNEL
 	select ERRATA_THEAD
 	select PM_GENERIC_DOMAINS if PM
+	select DW_APB_TIMER_OF
 	help
 	  This enables support for the RISC-V based T-HEAD SoCs.
 

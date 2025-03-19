@@ -203,4 +203,6 @@
 
 #define RISCV_INSN_NOP4	_AC(0x00000013, U)
 
+#define RISCV_INSN_NOP4	0x00000013U
+
 #endif /* __ASM_INSN_DEF_H */

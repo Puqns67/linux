@@ -1,5 +1,0 @@
-PyGithub
-python-lsp-server
-requests
-ply
-GitPython

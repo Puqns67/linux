@@ -984,6 +984,7 @@ properties:
               - sony,akatsuki-row
               - sony,apollo-row
               - thundercomm,db845c
+              - xiaomi,perseus
               - xiaomi,polaris
           - const: qcom,sdm845
 

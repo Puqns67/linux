@@ -541,6 +541,13 @@
 		vreg_lvs1_1p8: lvs1 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+
+			/*
+			 * Supplies the 1.8V side of the CCI I2C level
+			 * shifter; keep enabled until a generic
+			 * bus-supply property exists.
+			 */
+			regulator-always-on;
 		};
 
 	};
@@ -669,6 +676,8 @@
 		orientation = <1>; /* Rear camera */
 		rotation = <270>;
 
+		lens-focus = <&rear_cam_actuator>;
+
 		port {
 			imx519_ep: endpoint {
 				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
@@ -679,7 +688,11 @@
 		};
 	};
 
-	/* rear onnn,lc898217xc @72 */
+	rear_cam_actuator: actuator@72 {
+		compatible = "onnn,lc898217xc";
+		reg = <0x72>;
+		vdd-supply = <&main_cam_vaf>;
+	};
 };
 
 &cci_i2c1 {
@@ -705,6 +718,8 @@
 		orientation = <1>; /* Rear camera */
 		rotation = <270>;
 
+		lens-focus = <&sub_cam_actuator>;
+
 		port {
 			imx376k_ep: endpoint {
 				remote-endpoint = <&csiphy1_ep>;
@@ -712,10 +727,13 @@
 				link-frequencies = /bits/ 64 <500000000>;
 			};
 		};
-
 	};
 
-	/* onnn,lc898217xc @74 */
+	sub_cam_actuator: actuator@74 {
+		compatible = "onnn,lc898217xc";
+		reg = <0x74>;
+		vdd-supply = <&sub_cam_vaf>;
+	};
 };
 
 &cdsp_pas {

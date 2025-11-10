@@ -281,6 +281,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TAS675X
 	imply SND_SOC_TDA7419
+	imply SND_SOC_TFA98XX
 	imply SND_SOC_TFA9879
 	imply SND_SOC_TFA989X
 	imply SND_SOC_TLV320ADC3XXX
@@ -2296,6 +2297,16 @@ config SND_SOC_TDA7419
 	tristate "ST TDA7419 audio processor"
 	depends on I2C
 	select REGMAP_I2C
+
+config SND_SOC_TFA98XX
+	tristate "NXP/Goodix TFA98XX smart amplifier"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the NXP/Goodix TFA98XX family of smart speaker
+	  amplifiers (TFA9872, TFA9873, TFA9874, TFA9875, TFA9878, TFA9888,
+	  TFA9894, TFA9912). The driver loads a vendor-provided container
+	  firmware file (tfa98xx.cnt) to configure the on-chip DSP.
 
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"

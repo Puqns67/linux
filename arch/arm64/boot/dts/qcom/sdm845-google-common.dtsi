@@ -666,12 +666,6 @@
 	status = "okay";
 };
 
-&pmi8998_haptics {
-	qcom,wave-play-rate-us = <6667>;
-
-	status = "okay";
-};
-
 &pmi8998_flash {
 	status = "okay";
 
@@ -696,7 +690,12 @@
 		flash-max-timeout-us = <1280000>;
 		function-enumerator = <1>;
 	};
->>>>>>> 754cfabdf97aa (arm64: dts: qcom: sdm845-google: Enable PMI8998 camera flash LEDs)
+};
+
+&pmi8998_haptics {
+	qcom,wave-play-rate-us = <6667>;
+
+	status = "okay";
 };
 
 &qupv3_id_0 {

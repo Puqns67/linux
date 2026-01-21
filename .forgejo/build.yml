@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+name: Build
+
+on: [pull_request]
+
+jobs:
+  build:
+    name: build-kernel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 250
+
+      - name: install dependecies
+        run: |
+          sudo apt-get -qq update > /dev/null
+          sudo apt-get -qq install clang llvm lld bc git build-essential binutils-multiarch device-tree-compiler fakeroot libncurses5-dev libssl-dev bison flex libelf-dev dwarves python3-pip > /dev/null
+
+      - name: defconfig+sdm845.config
+        run: |
+          ARCH=arm64 LLVM=1 make defconfig sdm845.config O=.output -j9
+
+      - name: BengalOS config
+        run: |
+          ARCH=arm64 LLVM=1 ./scripts/config --file .output/.config \
+            -d LOCALVERSION_AUTO \
+            -e EROFS_FS \
+            -e EROFS_FS_ZIP \
+            -e EROFS_FS_LZMA \
+            -e EROFS_FS_DEFLATE \
+            -e EROFS_FS_ZSTD \
+            -e BTRFS_FS \
+            -e DM_VERITY \
+            -e DM_VERITY_VERIFY_ROOTHASH_SIG \
+            -e DM_VERITY_FEC \
+
+
+      - name: build
+        run: |
+          ARCH=arm64 LLVM=1 make O=.output -j9
+          ARCH=arm64 LLVM=1 make bindeb-pkg O=.output -j9
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bindeb-pkg
+          path: linux-*
+          retention-days: 14
+          compression-level: 0
+          include-hidden-files: true

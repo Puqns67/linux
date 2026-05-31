@@ -958,6 +958,21 @@ config DRM_PANEL_SAMSUNG_DB7430
 	  DB7430 DPI display controller used in such devices as the
 	  LMS397KF04 480x800 DPI panel.
 
+config DRM_PANEL_SAMSUNG_EA8074
+	tristate "Samsung EA8074 DSI command mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y or M here if you want to enable support for the
+	  Samsung EA8074 display driver IC and connected panel.
+
+	  Currently supported panels:
+
+	    Samsung AMS601NT01 (found in the Huawei Mate 10 Pro)
+	    Samsung AMS621RC (found in the Xiaomi Mi 8 smartphone)
+	    Samsung L590NT06 (found in the Comma three)
+
 config DRM_PANEL_SAMSUNG_LD9040
 	tristate "Samsung LD9040 RGB/SPI panel"
 	depends on OF && SPI

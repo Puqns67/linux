@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/siw,sw49410-ts-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SiliconWorks SW49410 SPI touchscreen
+
+maintainers:
+  - Paul Sajna <sajattack@postmarketos.org>
+
+description: SiliconWorks touchscreen connected with SPI
+
+allOf:
+  - $ref: touchscreen.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+properties:
+  compatible:
+    enum:
+      - siw,sw49410-ts-spi
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - interrupts
+  - reset-gpios
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    &spi5 {
+      clock-frequency = <5000000>;
+
+      status = "okay";
+
+      touchscreen@0 {
+          compatible = "siw,sw49410-ts-spi";
+          reg = <0>;
+          interrupts-extended = <&tlmm 31 IRQ_TYPE_EDGE_FALLING>;
+          spi-max-frequency = <5000000>;
+          reset-gpio = <&tlmm 32 GPIO_ACTIVE_LOW>;
+          panel = <&display_panel>;
+          touchscreen-size-x = <1440>;
+          touchscreen-size-y = <3120>;
+        };
+    };
+...

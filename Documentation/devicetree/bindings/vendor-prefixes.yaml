@@ -1519,6 +1519,8 @@ patternProperties:
     description: Si-En Technology Ltd.
   "^si-linux,.*":
     description: Silicon Linux Corporation
+  "^siw,.*":
+    description: LX Semicon (formerly SiliconWorks)
   "^sielaff,.*":
     description: Sielaff GmbH & Co.
   "^siemens,.*":

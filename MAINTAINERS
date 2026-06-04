@@ -25097,6 +25097,13 @@ S:	Maintained
 F:	Documentation/fb/sm712fb.rst
 F:	drivers/video/fbdev/sm712*
 
+SILICONWORKS SPI TOUCHSCREEN INPUT DRIVER
+M:	Paul Sajna <sajattack@postmarketos.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/touchscreen/siw,sw49410-ts-spi.yaml
+F:	drivers/input/touchscreen/sw49410-ts-spi.c
+
 SILVACO I3C DUAL-ROLE MASTER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
 M:	Frank Li <Frank.Li@nxp.com>

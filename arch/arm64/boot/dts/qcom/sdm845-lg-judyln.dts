@@ -148,6 +148,30 @@
 	status = "okay";
 };
 
+&qup_spi5_default {
+	drive-strength = <6>;
+	bias-disable;
+
+	status = "okay";
+};
+
+&spi5 {
+	clock-frequency = <5000000>;
+
+	status = "okay";
+
+	touchscreen@0 {
+		compatible = "siw,sw49410-ts-spi";
+		reg = <0>;
+		interrupts-extended = <&tlmm 31 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <5000000>;
+		reset-gpio = <&tlmm 32 GPIO_ACTIVE_LOW>;
+		panel = <&display_panel>;
+		touchscreen-size-x = <1440>;
+		touchscreen-size-y = <3120>;
+	};
+};
+
 &tlmm {
 	thinq_key_default: thinq-key-default-state {
 		pins = "gpio89";

@@ -48,6 +48,17 @@
 		};
 	};
 
+	regulator-earphone-sw {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio K1_GPIO(79) GPIO_ACTIVE_HIGH>;
+		regulator-name = "earphone-sw";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	pcie_vcc3v3: regulator-pcie-vcc3v3 {
 		compatible = "regulator-fixed";
 		enable-active-high;

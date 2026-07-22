@@ -25,6 +25,29 @@
 		stdout-path = "serial0";
 	};
 
+	analog-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board Analog ES8388";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,hp-det-gpio = <&gpio K1_GPIO(127) GPIO_ACTIVE_HIGH>;
+		simple-audio-card,widgets =
+			"Headphone", "Headphones",
+			"Microphone", "Microphone Jack";
+		simple-audio-card,routing =
+			"Headphones", "LOUT1",
+			"Headphones", "ROUT1",
+			"LINPUT1", "Microphone Jack";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&es8388>;
+		};
+	};
+
 	pcie_vcc3v3: regulator-pcie-vcc3v3 {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -140,6 +163,26 @@
 
 &pdma {
 	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_0_cfg>;
+	status = "okay";
+
+	es8388: codec@11 {
+		compatible = "everest,es8388", "everest,es8328";
+		reg = <0x11>;
+		assigned-clocks = <&syscon_mpmu CLK_I2S_SYSCLK>;
+		assigned-clock-rates = <12288000>;
+		clocks = <&syscon_mpmu CLK_I2S_SYSCLK>;
+		clock-names = "mclk";
+		AVDD-supply = <&buck3_1v8>;
+		DVDD-supply = <&buck4_3v3>;
+		HPVDD-supply = <&buck4_3v3>;
+		PVDD-supply = <&buck3_1v8>;
+		#sound-dai-cells = <0>;
+	};
 };
 
 &i2c8 {
@@ -258,6 +301,12 @@
 			};
 		};
 	};
+};
+
+&i2s0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sspa0_0_cfg>;
+	status = "okay";
 };
 
 &pcie1_phy {

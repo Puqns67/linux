@@ -587,6 +587,19 @@
 		};
 	};
 
+	sspa0_0_cfg: sspa0-0-cfg {
+		sspa0-0-pins {
+			pinmux = <K1_PADCONF(118, 3)>,	/* sspa0_clk */
+				 <K1_PADCONF(119, 3)>,	/* sspa0_frm */
+				 <K1_PADCONF(120, 3)>,	/* sspa0_txd */
+				 <K1_PADCONF(121, 3)>,	/* sspa0_rxd */
+				 <K1_PADCONF(122, 3)>;	/* sspa0_sysclk */
+
+			bias-pull-up = <0>;
+			drive-strength = <19>;
+		};
+	};
+
 	ssp3_0_cfg: ssp3-0-cfg {
 		ssp3-0-pins {
 			pinmux = <K1_PADCONF(75, 2)>,	/* SCLK */

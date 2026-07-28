@@ -167,6 +167,26 @@
 		vin-supply = <&vph_pwr>;
 	};
 
+	/*
+	 * CAM_VANA0 in the downstream overlay's cam-sensor@0: a GPIO switch off
+	 * the BOB rail, same shape as the two front sensors' avdd above.
+	 */
+	camera_rear_avdd: rear-cam-avdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "rear_cam_avdd";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		gpios = <&tlmm 16 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&cam_rear_avdd_default_pin>;
+		pinctrl-names = "default";
+
+		vin-supply = <&vreg_bob>;
+	};
+
 	wcn3990-pmu {
 		compatible = "qcom,wcn3990-pmu";
 
@@ -410,6 +430,16 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		port@0 {
+			reg = <0>;
+
+			camss_endpoint0: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&cam_rear_endpoint>;
+			};
+		};
+
 		port@1 {
 			reg = <1>;
 
@@ -440,6 +470,38 @@
 
 &cci {
 	status = "okay";
+};
+
+&cci_i2c0 {
+	rear_cam: camera@1a {
+		compatible = "sony,imx363";
+		reg = <0x1a>;
+
+		clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		assigned-clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		assigned-clock-rates = <24000000>;
+		clock-frequency = <24000000>;
+
+		reset-gpios = <&tlmm 80 GPIO_ACTIVE_LOW>;
+
+		vana-supply = <&camera_rear_avdd>;
+		vdig-supply = <&vreg_s3a_1p35>;
+		vif-supply = <&vreg_lvs1_1p8>;
+
+		pinctrl-0 = <&cam_rear_reset_default_pin &cam_mclk0_default>;
+		pinctrl-names = "default";
+
+		rotation = <90>;
+		orientation = <MEDIA_ORIENTATION_BACK>;
+
+		port {
+			cam_rear_endpoint: endpoint {
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <636000000>;
+				remote-endpoint = <&camss_endpoint0>;
+			};
+		};
+	};
 };
 
 &cci_i2c1 {
@@ -696,6 +758,20 @@
 
 	cam_front_reset_default: cam-front-reset-default-state {
 		pins = "gpio21";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_rear_reset_default_pin: cam-rear-reset-default-pins {
+		pins = "gpio80";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_rear_avdd_default_pin: cam-avdd-rear-default-pins {
+		pins = "gpio16";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

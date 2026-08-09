@@ -577,7 +577,23 @@
 
 	status = "okay";
 
-	/* stmfts5 @49 */
+	touchscreen@49 {
+		compatible = "st,stmfts5";
+		reg = <0x49>;
+
+		interrupts-extended = <&tlmm 31 IRQ_TYPE_LEVEL_LOW>;
+
+		reset-gpios = <&tlmm 32 GPIO_ACTIVE_LOW>;
+
+		avdd-supply = <&vreg_l28a_3p3>;
+		vdd-supply = <&vreg_panel_vddio>;
+
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <2248>;
+
+		pinctrl-0 = <&ts_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &tlmm {
@@ -598,6 +614,13 @@
 			drive-strength = <2>;
 			bias-pull-down;
 		};
+	};
+
+	ts_default: ts-default-state {
+		pins = "gpio31", "gpio32";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
 	};
 };
 

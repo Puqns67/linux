@@ -402,11 +402,6 @@
 	};
 };
 
-&dispcc {
-	/* Disable for now so simple-framebuffer continues working */
-	status = "disabled";
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -453,8 +448,44 @@
 };
 
 &mdss {
-	/* Disable for now so simple-framebuffer continues working */
-	status = "disabled";
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l26a_1p2>;
+
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,ea8074-ams621rc", "samsung,ea8074";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		vddio-supply = <&vreg_l14a_1p8>;
+		elvdd-supply = <&vreg_panel_vci>;
+		elvss-supply = <&vreg_panel_vci>;
+
+		pinctrl-0 = <&panel_default>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l1a_0p875>;
+
+	status = "okay";
 };
 
 &mss_pil {
@@ -552,6 +583,22 @@
 &tlmm {
 	gpio-reserved-ranges = < 0 4>, /* SPI (Goodix Fingerprint) */
 			       <81 4>; /* SPI (Synaptics Fingerprint) */
+
+	panel_default: panel-default-state {
+		reset-pins {
+			pins = "gpio6";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		te-pins {
+			pins = "gpio10";
+			function = "mdp_vsync";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
 };
 
 &ufs_mem_hc {

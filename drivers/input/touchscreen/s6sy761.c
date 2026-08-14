@@ -394,6 +394,7 @@ static void s6sy761_power_off(void *data)
 static int s6sy761_probe(struct i2c_client *client)
 {
 	struct s6sy761_data *sdata;
+	struct gpio_desc *gpiod;
 	unsigned int max_x, max_y;
 	int err;
 
@@ -422,6 +423,16 @@ static int s6sy761_probe(struct i2c_client *client)
 	if (IS_ERR(sdata->reset_gpio))
 		return dev_err_probe(&client->dev, PTR_ERR(sdata->reset_gpio),
 				     "Failed to get reset GPIO\n");
+
+	/*
+	 * Some boards share the touch I2C bus between the AP and the SLPI
+	 * sensor DSP; make the AP the bus master before talking to the chip.
+	 */
+	gpiod = devm_gpiod_get_optional(&client->dev, "mode-switch",
+					GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod))
+		return dev_err_probe(&client->dev, PTR_ERR(gpiod),
+				     "Failed to get mode-switch GPIO\n");
 
 	err = devm_add_action_or_reset(&client->dev, s6sy761_power_off, sdata);
 	if (err)

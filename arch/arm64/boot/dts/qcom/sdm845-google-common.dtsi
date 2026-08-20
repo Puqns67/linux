@@ -1009,18 +1009,27 @@
 		bias-disable;
 	};
 
-	touchscreen_reset: ts-reset-state {
-		pins = "gpio99";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-pull-up;
-	};
+	touchscreen_default: touchscreen-default-state {
+		reset-pins {
+			pins = "gpio99";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
 
-	touchscreen_irq_n: ts-irq-n-gpio-state {
-		pins = "gpio125";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
+		irq-pins {
+			pins = "gpio125";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		switch-pins {
+			pins = "gpio136";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 
 	cs35l36_bottom_default_state: cs35l36-bottom-default-state {

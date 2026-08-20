@@ -30,7 +30,7 @@
 		compatible = "st,stmfts5";
 		reg = <0x49>;
 
-		pinctrl-0 = <&touchscreen_irq_n>, <&touchscreen_reset>;
+		pinctrl-0 = <&touchscreen_default>;
 		pinctrl-names = "default";
 
 		interrupts-extended = <&tlmm 125 IRQ_TYPE_LEVEL_LOW>;

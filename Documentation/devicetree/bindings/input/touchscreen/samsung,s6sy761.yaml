@@ -25,6 +25,16 @@ properties:
   avdd-supply: true
   vdd-supply: true
 
+  reset-gpios:
+    description: Reset GPIO (active-low)
+    maxItems: 1
+
+  mode-switch-gpios:
+    description:
+      Selects the I2C bus master on boards that share the touch bus between
+      the AP and the SLPI sensor DSP. Asserted gives the bus to the AP.
+    maxItems: 1
+
 unevaluatedProperties: false
 
 required:

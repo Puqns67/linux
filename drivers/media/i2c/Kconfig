@@ -794,6 +794,16 @@ config VIDEO_S5C73M3
 	  This is a V4L2 sensor driver for Samsung S5C73M3
 	  8 Mpixel camera.
 
+config VIDEO_S5K2X7SP
+	tristate "Samsung S5K2X7SP sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Samsung S5K2X7SP raw
+	  camera sensor, e.g. as used in the SHIFT 6MQ (axolotl) phone.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5k2x7sp.
+
 config VIDEO_S5K3M5
 	tristate "Samsung S5K3M5 sensor support"
 	select V4L2_CCI_I2C

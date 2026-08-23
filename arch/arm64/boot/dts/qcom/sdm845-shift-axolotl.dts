@@ -1462,3 +1462,10 @@
 &q6mvm {
 	status = "okay";
 };
+
+&wcd9340 {
+	qcom,mbhc-buttons-vthreshold-microvolt = <75000 150000 237000 500000
+						  500000 500000 500000 500000>;
+	qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
+	qcom,mbhc-headset-vthreshold-microvolt = <1700000>;
+};

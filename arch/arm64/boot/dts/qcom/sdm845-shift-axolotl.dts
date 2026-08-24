@@ -176,6 +176,39 @@
 		vin-supply = <&vreg_s3a_1p35>;
 	};
 
+	camera_front_avdd: camera-front-avdd-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "camera_front_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		startup-delay-us = <135>;
+		enable-active-high;
+		gpios = <&tlmm 33 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&cam_front_avdd_default_state>;
+		pinctrl-names = "default";
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	/* RP105L121F LDO */
+	camera_front_dvdd: camera-front-dvdd-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "camera_front_dvdd";
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
+		startup-delay-us = <135>;
+		enable-active-high;
+		gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&cam_front_dvdd_default_state>;
+		pinctrl-names = "default";
+
+		vin-supply = <&vph_pwr>;
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -570,6 +603,15 @@
 				remote-endpoint = <&rear_camera_aux_ep>;
 			};
 		};
+
+		port@2 {
+			reg = <2>;
+			csiphy2_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&front_camera_ep>;
+			};
+		};
 	};
 };
 
@@ -662,6 +704,36 @@
 		reg = <0x0c>;
 
 		vcc-supply = <&cam_rear2_af_2p8>;
+	};
+
+	front_camera: camera@2d {
+		compatible = "samsung,s5k3p9sp";
+		reg = <0x2d>;
+
+		vana-supply = <&camera_front_avdd>;
+		vdig-supply = <&camera_front_dvdd>;
+		vio-supply = <&vreg_lvs1a_1p8>;
+
+		clocks = <&clock_camcc CAM_CC_MCLK2_CLK>;
+		clock-names = "mclk";
+		assigned-clocks = <&clock_camcc CAM_CC_MCLK2_CLK>;
+		assigned-clock-rates = <24000000>;
+
+		reset-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_mclk2_default>;
+
+		orientation = <0>;
+		rotation = <90>;
+
+		port {
+			front_camera_ep: endpoint {
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <700000000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
 	};
 };
 
@@ -952,6 +1024,20 @@
 
 	cam_rear2_af_default_state: cam-rear2-af-default-state {
 		pins = "gpio76";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_front_avdd_default_state: cam-front-avdd-default-state {
+		pins = "gpio33";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_front_dvdd_default_state: cam-front-dvdd-default-state {
+		pins = "gpio77";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

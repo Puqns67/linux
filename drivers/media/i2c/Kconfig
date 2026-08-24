@@ -804,6 +804,16 @@ config VIDEO_S5K2X7SP
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5k2x7sp.
 
+config VIDEO_S5K3P9SP
+	tristate "Samsung S5K3P9SP sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Samsung S5K3P9SP raw
+	  camera sensor, e.g. as used in the SHIFT 6MQ (axolotl) phone.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5k3p9sp.
+
 config VIDEO_S5K3M5
 	tristate "Samsung S5K3M5 sensor support"
 	select V4L2_CCI_I2C

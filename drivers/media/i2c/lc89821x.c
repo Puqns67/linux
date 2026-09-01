@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright Vasiliy Doylov <nekocwd@altlinux.org>
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
@@ -14,6 +15,17 @@
 #define LC89821X_FOCUS_STEPS 1
 #define LC89821X_DAC_ADDR CCI_REG16(0x84)
 
+/* Wake up sequence of the models equipped with an EEPROM */
+#define LC89821X_ID_ADDR CCI_REG8(0xf0)
+#define LC89821X_ID_VAL 0xa5
+#define LC89821X_STANDBY_ADDR CCI_REG8(0x81)
+#define LC89821X_STANDBY_RELEASE 0x80
+#define LC89821X_DOWNLOAD_ADDR CCI_REG8(0xe0)
+#define LC89821X_DOWNLOAD_START 0x01
+#define LC89821X_STATUS_ADDR CCI_REG8(0xb3)
+#define LC89821X_STATUS_BUSY GENMASK(7, 5)
+#define LC89821X_DOWNLOAD_RETRIES 10
+
 /*
  * The LC89821x are closed loop auto focus controllers: the value written to
  * LC89821X_DAC_ADDR is a target hall sensor position, so the usable range
@@ -21,6 +33,10 @@
  */
 struct lc89821x_chip {
 	u16 focus_pos_max;
+	/* Position is a two's complement offset from the centre of the range */
+	bool signed_pos;
+	/* Calibration data has to be loaded from the EEPROM after power on */
+	bool needs_wakeup;
 };
 
 static const char *const lc89821x_supply_names[] = {
@@ -43,13 +59,82 @@ static inline struct lc89821x *sd_to_lc89821x(struct v4l2_subdev *subdev)
 
 static int lc89821x_set_dac(struct lc89821x *lc89821x, u16 val)
 {
+	const struct lc89821x_chip *chip = lc89821x->chip;
 	int ret;
+
+	/*
+	 * Positive targets move the lens towards macro, like
+	 * V4L2_CID_FOCUS_ABSOLUTE, so map the control range straight onto
+	 * the two's complement offset from the centre. The usable window is
+	 * a per module calibration matter left to userspace, as for the
+	 * other chip.
+	 */
+	if (chip->signed_pos)
+		val = (val - (chip->focus_pos_max + 1) / 2) & chip->focus_pos_max;
 
 	ret = cci_write(lc89821x->regmap, LC89821X_DAC_ADDR, val, NULL);
 	if (ret)
 		dev_err(lc89821x->dev, "failed to set DAC: %d\n", ret);
 
 	return ret;
+}
+
+/*
+ * Load the calibration data from the on chip EEPROM into RAM. The vendor
+ * driver additionally enables lens temperature correction here, but only
+ * after seeding the reference temperature registers from a live reading,
+ * scaled by gain bits stored on a second I2C address. That is not
+ * implemented, so the correction is left disabled.
+ */
+static int lc89821x_wakeup(struct lc89821x *lc89821x)
+{
+	unsigned int i;
+	int ret = 0;
+	u64 val;
+
+	ret = cci_read(lc89821x->regmap, LC89821X_ID_ADDR, &val, NULL);
+	if (ret)
+		return ret;
+
+	if (val != LC89821X_ID_VAL) {
+		dev_err(lc89821x->dev, "unexpected chip id 0x%llx\n", val);
+		return -ENODEV;
+	}
+
+	fsleep(1000);
+
+	cci_write(lc89821x->regmap, LC89821X_STANDBY_ADDR,
+		  LC89821X_STANDBY_RELEASE, &ret);
+	fsleep(1000);
+	cci_write(lc89821x->regmap, LC89821X_DOWNLOAD_ADDR,
+		  LC89821X_DOWNLOAD_START, &ret);
+	if (ret)
+		return ret;
+
+	fsleep(8000);
+
+	for (i = 0; i < LC89821X_DOWNLOAD_RETRIES; i++) {
+		ret = cci_read(lc89821x->regmap, LC89821X_STATUS_ADDR, &val,
+			       NULL);
+		if (ret)
+			return ret;
+
+		if (!(val & LC89821X_STATUS_BUSY))
+			return 0;
+
+		fsleep(1000);
+	}
+
+	dev_err(lc89821x->dev, "timed out loading the calibration data\n");
+
+	return -ETIMEDOUT;
+}
+
+static int lc89821x_power_off(struct lc89821x *lc89821x)
+{
+	regulator_bulk_disable(ARRAY_SIZE(lc89821x_supply_names),
+			       lc89821x->supplies);
+	return 0;
 }
 
 static int lc89821x_power_on(struct lc89821x *lc89821x)
@@ -62,13 +147,15 @@ static int lc89821x_power_on(struct lc89821x *lc89821x)
 		return ret;
 
 	fsleep(10000);
-	return 0;
-}
 
-static int lc89821x_power_off(struct lc89821x *lc89821x)
-{
-	regulator_bulk_disable(ARRAY_SIZE(lc89821x_supply_names),
-			       lc89821x->supplies);
+	if (lc89821x->chip->needs_wakeup) {
+		ret = lc89821x_wakeup(lc89821x);
+		if (ret) {
+			lc89821x_power_off(lc89821x);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -145,9 +232,15 @@ static int lc89821x_init_controls(struct lc89821x *lc89821x)
 
 	v4l2_ctrl_handler_init(hdl, 1);
 
+	/*
+	 * A closed loop controller drives full current at an unreachable
+	 * target, so rest the signed chips mid stroke rather than against
+	 * the infinity stop.
+	 */
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE, 0,
 			  lc89821x->chip->focus_pos_max, LC89821X_FOCUS_STEPS,
-			  0);
+			  lc89821x->chip->signed_pos ?
+			  (lc89821x->chip->focus_pos_max + 1) / 2 : 0);
 
 	if (hdl->error)
 		return hdl->error;
@@ -258,8 +351,16 @@ static const struct lc89821x_chip lc898217xc_chip = {
 	.focus_pos_max = 2047,
 };
 
+static const struct lc89821x_chip lc898219xi_chip = {
+	/* 12 bit A/D converter */
+	.focus_pos_max = 4095,
+	.signed_pos = true,
+	.needs_wakeup = true,
+};
+
 static const struct of_device_id lc89821x_of_table[] = {
 	{ .compatible = "onnn,lc898217xc", .data = &lc898217xc_chip },
+	{ .compatible = "onnn,lc898219xi", .data = &lc898219xi_chip },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, lc89821x_of_table);
@@ -281,5 +382,6 @@ static struct i2c_driver lc89821x_i2c_driver = {
 module_i2c_driver(lc89821x_i2c_driver);
 
 MODULE_AUTHOR("Vasiliy Doylov <nekocwd@mainlining.org>");
+MODULE_AUTHOR("Frieder Hannenheim <git@fhannenheim.net>");
 MODULE_DESCRIPTION("Onsemi LC89821X VCM driver");
 MODULE_LICENSE("GPL");

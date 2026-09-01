@@ -20428,6 +20428,7 @@ F:	drivers/net/phy/ncn*
 
 ONSEMI LC89821X LENS VOICE COIL DRIVER
 M:	Vasiliy Doylov <nekocwd@mainlining.org>
+M:	Frieder Hannenheim <git@fhannenheim.net>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/onnn,lc898217xc.yaml

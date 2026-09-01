@@ -5,13 +5,14 @@
 $id: http://devicetree.org/schemas/media/i2c/onnn,lc898217xc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ON Semiconductor LC898217XC Voice Coil Motor (VCM) Lens
+title: ON Semiconductor LC89821X Voice Coil Motor (VCM) Lens
 
 maintainers:
   - Vasiliy Doylov <nekocwd@mainlining.org>
 
 description:
-  The LC898217XC is a 11-bit digital-to-analog (DAC) converter.
+  The LC898217XC is a 11-bit and the LC898219XI a 12-bit digital-to-analog
+  (DAC) converter.
   VCM current is controlled with a linear mode driver.The DAC is controlled
   via a 2-wire (I2C-compatible) serial interface that operates at clock
   rates up to 1MHz. This chip integrates Advanced Actuator Control (AAC)
@@ -21,6 +22,7 @@ properties:
   compatible:
     enum:
       - onnn,lc898217xc
+      - onnn,lc898219xi
 
   reg:
     maxItems: 1

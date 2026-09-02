@@ -382,6 +382,12 @@
 		vreg_lvs1_1p8: lvs1 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			/*
+			 * Camera I/O rail. The IMX363 and the VD6281 colour sensor
+			 * share CCI0 with the VCM and clamp the bus when this rail
+			 * is off, so keep it on until the bus users are sequenced.
+			 */
+			regulator-always-on;
 		};
 	};
 
@@ -498,6 +504,8 @@
 		rotation = <90>;
 		orientation = <MEDIA_ORIENTATION_BACK>;
 
+		lens-focus = <&rear_cam_vcm>;
+
 		port {
 			cam_rear_endpoint: endpoint {
 				data-lanes = <1 2 3 4>;
@@ -505,6 +513,15 @@
 				remote-endpoint = <&camss_endpoint0>;
 			};
 		};
+	};
+
+	/* OIS controller (Onsemi LC898123F40) @3e, VCM EEPROM @73 */
+
+	rear_cam_vcm: camera-lens@72 {
+		compatible = "onnn,lc898219xi";
+		reg = <0x72>;
+
+		vdd-supply = <&camera_rear_avdd>;
 	};
 };
 

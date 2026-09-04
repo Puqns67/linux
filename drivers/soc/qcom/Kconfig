@@ -289,6 +289,22 @@ config QCOM_PBS
 	  This module provides the APIs to the client drivers that wants to send the
 	  PBS trigger event to the PBS RAM.
 
+config QCOM_MODEMSMEM
+	tristate "Google Pixel modem SMEM information"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF
+	depends on QCOM_SMEM
+	help
+	  The modem firmware on Google Pixel phones (Pixel 3 through Pixel 5a)
+	  expects the application processor to publish the SoC platform type
+	  and revision in a vendor-defined SMEM item before the modem is
+	  started. This driver fills in that item from the socinfo SMEM data.
+	  There is no device tree node for it; the driver matches the board
+	  compatible, so a modular build has to be loaded explicitly.
+
+	  Say Y or M if you want a working modem on one of those phones.
+	  If unsure, say N.
+
 endif
 
 # Options selected by other drivers from different subsystems must be outside

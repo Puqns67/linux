@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/cirrus,cs40l20.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CS40L20 Boosted Haptic Driver
+
+maintainers:
+  - David Heidelberg <david@ixit.cz>
+
+description:
+  The CS40L20 is a boosted haptic driver with an integrated HALO DSP that
+  plays waveforms from a wavetable loaded by the host. It is controlled over
+  I2C and drives an external boost inductor and capacitor whose values, and
+  the peak current limit, must be programmed before the boost converter is
+  enabled.
+
+properties:
+  compatible:
+    const: cirrus,cs40l20
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+    description: TRIG_INTZ output.
+
+  reset-gpios:
+    maxItems: 1
+
+  vdd-a-supply:
+    description: VA, analog and digital core supply.
+
+  vdd-p-supply:
+    description: VP, battery supply for the boost converter.
+
+  cirrus,boost-ind-nanohenry:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1000, 1200, 1500, 2200]
+    description: Boost inductor value in nH.
+
+  cirrus,boost-cap-microfarad:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    description:
+      Total equivalent boost capacitance on the VBST and VAMP pins in uF,
+      derated at 11 V DC and rounded to the nearest integer.
+
+  cirrus,boost-peak-milliamp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1600
+    maximum: 4500
+    multipleOf: 50
+    description: Boost inductor peak current limit in mA.
+
+required:
+  - compatible
+  - reg
+  - reset-gpios
+  - vdd-a-supply
+  - vdd-p-supply
+  - cirrus,boost-ind-nanohenry
+  - cirrus,boost-cap-microfarad
+  - cirrus,boost-peak-milliamp
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        haptic-driver@43 {
+            compatible = "cirrus,cs40l20";
+            reg = <0x43>;
+            interrupt-parent = <&tlmm>;
+            interrupts = <88 IRQ_TYPE_LEVEL_LOW>;
+            reset-gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
+            vdd-a-supply = <&vreg_s4a_1p8>;
+            vdd-p-supply = <&vph_pwr>;
+            cirrus,boost-ind-nanohenry = <1000>;
+            cirrus,boost-cap-microfarad = <4>;
+            cirrus,boost-peak-milliamp = <4500>;
+        };
+    };

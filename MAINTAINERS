@@ -6257,6 +6257,7 @@ M:	David Heidelberg <david@ixit.cz>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/input/cirrus,cs40l20.yaml
+F:	drivers/input/misc/cs40l20.c
 
 CIRRUS LOGIC HAPTIC DRIVERS
 M:	James Ogletree <jogletre@opensource.cirrus.com>

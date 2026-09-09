@@ -635,6 +635,31 @@
 	};
 };
 
+&i2c5 {
+	clock-frequency = <1000000>;
+
+	status = "okay";
+
+	haptic-driver@43 {
+		compatible = "cirrus,cs40l20";
+		reg = <0x43>;
+
+		interrupts-extended = <&tlmm 88 IRQ_TYPE_LEVEL_LOW>;
+
+		reset-gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
+
+		vdd-a-supply = <&vreg_s4a_1p8>;
+		vdd-p-supply = <&vph_pwr>;
+
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <4>;
+		cirrus,boost-peak-milliamp = <4500>;
+
+		pinctrl-0 = <&haptics_default>;
+		pinctrl-names = "default";
+	};
+};
+
 &i2c12 {
 	status = "okay";
 
@@ -912,6 +937,22 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
+	};
+
+	haptics_default: haptics-default-state {
+		reset-pins {
+			pins = "gpio87";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		irq-pins {
+			pins = "gpio88";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	nfc_enable_default: nfc-enable-default-state {

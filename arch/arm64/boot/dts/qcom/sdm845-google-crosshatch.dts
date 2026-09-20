@@ -21,6 +21,28 @@
 	stride = <(1440 * 4)>;
 };
 
+&i2c2 {
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+
+		interrupts-extended = <&tlmm 125 IRQ_TYPE_LEVEL_LOW>;
+
+		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
+		mode-switch-gpios = <&tlmm 136 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&vreg_l19a_3p3>;
+		vdd-supply = <&vreg_l14a_1p8>;
+
+		pinctrl-0 = <&touchscreen_default>;
+		pinctrl-names = "default";
+	};
+};
+
 &ibb {
 	regulator-min-microvolt = <4600000>;
 	regulator-max-microvolt = <6000000>;

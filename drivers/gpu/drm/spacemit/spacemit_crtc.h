@@ -76,6 +76,7 @@ struct dpu_mmu_tbl {
  * @out_format: Output pixel format register cache.
  * @cl_rdma: Cmdlist register slot for RDMA programming.
  * @flip_done: Set once the DPU has committed the most recent page flip.
+ * @vblank_ref: True while this CRTC holds a vblank reference taken by run().
  * @clocks_on: True while clocks run; MMIO on a gated DPU stalls the bus.
  * @ur_reported: True once an underrun has been logged since the last CFG_RDY.
  * @ur_mask_armed: True while clr_int_sts() may still mask the underrun IRQ.
@@ -98,6 +99,7 @@ struct spacemit_crtc {
 	struct cmdlist_regs *cl_rdma;
 
 	bool flip_done;
+	bool vblank_ref;
 
 	bool clocks_on;
 
@@ -108,6 +110,27 @@ struct spacemit_crtc {
 static inline struct spacemit_crtc *to_spacemit_crtc(struct drm_crtc *crtc)
 {
 	return crtc ? container_of(crtc, struct spacemit_crtc, crtc) : NULL;
+}
+
+/*
+ * Take/drop the reference the commit path holds for the flip event.  The ISR
+ * and the CFG_RDY watchdog can both try to finish the same commit, so the
+ * drop has to be idempotent: dropping a reference twice underflows the DRM
+ * vblank counter.
+ */
+static inline void spacemit_crtc_vblank_get(struct spacemit_crtc *a_crtc)
+{
+	if (!drm_crtc_vblank_get(&a_crtc->crtc))
+		a_crtc->vblank_ref = true;
+}
+
+static inline void spacemit_crtc_vblank_put(struct spacemit_crtc *a_crtc)
+{
+	if (!a_crtc->vblank_ref)
+		return;
+
+	a_crtc->vblank_ref = false;
+	drm_crtc_vblank_put(&a_crtc->crtc);
 }
 
 struct spacemit_hw_device;

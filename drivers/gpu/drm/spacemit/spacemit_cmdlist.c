@@ -31,7 +31,7 @@ struct spacemit_crtc_state *cl_to_spacemit_cstate(const struct cmdlist *cl)
 struct cmdlist *plane_to_cl(struct drm_plane *plane)
 {
 	struct spacemit_plane_state *spacemit_pstate =
-			to_spacemit_plane_state(plane->state);
+		to_spacemit_plane_state(plane->state);
 
 	return &spacemit_pstate->cl;
 }
@@ -39,7 +39,7 @@ struct cmdlist *plane_to_cl(struct drm_plane *plane)
 struct cmdlist *crtc_to_cl(struct drm_crtc *crtc)
 {
 	struct spacemit_crtc_state *spacemit_cstate =
-			to_spacemit_crtc_state(crtc->state);
+		to_spacemit_crtc_state(crtc->state);
 
 	return &spacemit_cstate->cl;
 }
@@ -57,7 +57,7 @@ static void cmdlist_dump_node(struct cmdlist *cl)
 
 	if (cl->type == CMDLIST_PLANE) {
 		struct spacemit_plane_state *spacemit_pstate =
-				cl_to_spacemit_pstate(cl);
+			cl_to_spacemit_pstate(cl);
 
 		a_crtc = to_spacemit_crtc(spacemit_pstate->state.crtc);
 		rdma_id = spacemit_pstate->rdma_id;
@@ -65,7 +65,7 @@ static void cmdlist_dump_node(struct cmdlist *cl)
 		type = "RDMA";
 	} else if (cl->type == CMDLIST_CRTC) {
 		struct spacemit_crtc_state *spacemit_cstate =
-				cl_to_spacemit_cstate(cl);
+			cl_to_spacemit_cstate(cl);
 
 		a_crtc = to_spacemit_crtc(spacemit_cstate->base.crtc);
 		type = "CRTC";
@@ -96,7 +96,7 @@ void cmdlist_regs_packing(struct cmdlist *cl, enum cmdlist_mode_type mod,
 
 	if (cl->type == CMDLIST_PLANE) {
 		struct spacemit_plane_state *spacemit_pstate =
-				cl_to_spacemit_pstate(cl);
+			cl_to_spacemit_pstate(cl);
 
 		a_crtc = to_spacemit_crtc(spacemit_pstate->state.crtc);
 
@@ -105,7 +105,7 @@ void cmdlist_regs_packing(struct cmdlist *cl, enum cmdlist_mode_type mod,
 			spacemit_pstate->state.crtc_y);
 	} else if (cl->type == CMDLIST_CRTC) {
 		struct spacemit_crtc_state *spacemit_cstate =
-				cl_to_spacemit_cstate(cl);
+			cl_to_spacemit_cstate(cl);
 
 		a_crtc = to_spacemit_crtc(spacemit_cstate->base.crtc);
 	} else {
@@ -126,30 +126,32 @@ void cmdlist_regs_packing(struct cmdlist *cl, enum cmdlist_mode_type mod,
 		return;
 
 	for (i = 0; i < cl_regs->size;) {
-		u32 value[CMDLIST_ROW_REGS] = {0x0};
+		u32 value[CMDLIST_ROW_REGS] = { 0x0 };
 		u32 offset, strobe = 0;
-		u8 regs_in_row = 0;
+		u8 run = 0;
 
 		if (cl_regs->flags[i]) {
 			offset = cl_regs->base + i * sizeof(u32);
+			/*
+			 * Only a run of consecutive words may share a row: K1
+			 * takes the number of registers to write from cfg_num
+			 * and the byte enables from strobe, so a hole in the
+			 * window would make it write the wrong register.
+			 */
 			for (u8 j = 0; j < CMDLIST_ROW_REGS; j++) {
 				index = i + j;
-				if (likely(index < cl_regs->size)) {
-					if (cl_regs->flags[index]) {
-						value[j] = reg_base[index];
-						regs_in_row++;
-						strobe |= CMDLIST_REG_STROBE(j);
-					}
-				} else {
+				if (unlikely(index >= cl_regs->size) ||
+				    !cl_regs->flags[index])
 					break;
-				}
+
+				value[j] = reg_base[index];
+				strobe |= CMDLIST_REG_STROBE(j);
+				run++;
 			}
 			hwdev->cmdlist_fill_data_row(cl, strobe, offset, value);
-			/*
-			 * the row covers the whole window; a shorter stride
-			 * would revisit covered words as duplicate rows
-			 */
-			i += CMDLIST_ROW_REGS;
+			/* Only the words this row consumed; the next window
+			 * starts at the first one that did not fit. */
+			i += run;
 			cl->nod_len++;
 		} else {
 			i++;
@@ -167,7 +169,7 @@ void cmdlist_sort_by_group(struct drm_crtc *crtc)
 	struct cmdlist *prev;
 	struct drm_plane *plane;
 	struct spacemit_crtc_rdma *rdmas =
-			to_spacemit_crtc_state(crtc->state)->rdmas;
+		to_spacemit_crtc_state(crtc->state)->rdmas;
 	struct spacemit_drm_private *priv = crtc->dev->dev_private;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
@@ -218,13 +220,20 @@ void cmdlist_atomic_commit(struct drm_crtc *crtc,
 	struct spacemit_drm_private *priv = crtc->dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	struct spacemit_crtc_rdma *cur_rdmas =
-			to_spacemit_crtc_state(crtc->state)->rdmas;
+		to_spacemit_crtc_state(crtc->state)->rdmas;
 	struct spacemit_crtc_rdma *old_rdmas =
-			to_spacemit_crtc_state(old_state)->rdmas;
+		to_spacemit_crtc_state(old_state)->rdmas;
 
 	a_crtc = to_spacemit_crtc(crtc);
 
 	for (i = 0; i < hwdev->rdma_nums; i++) {
+		/*
+		 * The K1 fetch engine only reloads its start address when the
+		 * channel is restarted, so in-use channels are stopped and
+		 * re-armed below as well.  Dropping the stop step leaves the
+		 * engine on the old list and the composer starves (outctrl then
+		 * shows its background colour).
+		 */
 		if (old_rdmas[i].in_use)
 			hwdev->enable_cmdlist(a_crtc, hwdev, i, false);
 
@@ -233,14 +242,15 @@ void cmdlist_atomic_commit(struct drm_crtc *crtc,
 			cur_cl = priv->cmdlist_groups[i];
 			first_cl = cur_cl;
 			while (cur_cl) {
-				hwdev->cmdlist_fill_conf_row(cur_cl, hwdev,
-					CMDLIST_CMP_INVALID);
+				hwdev->cmdlist_fill_conf_row(
+					cur_cl, hwdev, CMDLIST_CMP_INVALID);
 				cmdlist_dump_node(cur_cl);
 				cur_cl = cur_cl->next;
 			}
 			chy = cl_to_spacemit_pstate(first_cl)->state.crtc_y;
 			addrl = (lower_32_bits(priv->cmdlist_groups[i]->pa) &
-				 CMDLIST_ADDRL_ALIGN_MASK) >> CMDLIST_ADDRL_ALIGN_BITS;
+				 CMDLIST_ADDRL_ALIGN_MASK) >>
+				CMDLIST_ADDRL_ALIGN_BITS;
 
 			addrh = upper_32_bits(priv->cmdlist_groups[i]->pa);
 			hwdev->cfg_cmdlist(hwdev, i, chy, addrl, addrh);
@@ -259,7 +269,7 @@ void crtc_cmdlist_sort_by_group(struct spacemit_crtc *a_crtc)
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	struct drm_crtc_state *crtc_state = a_crtc->crtc.state;
 	struct spacemit_crtc_state *spacemit_crtc_state =
-			to_spacemit_crtc_state(crtc_state);
+		to_spacemit_crtc_state(crtc_state);
 	u8 crtc_id = drm_crtc_index(crtc);
 
 	first_cl = &spacemit_crtc_state->cl;
@@ -277,8 +287,7 @@ void crtc_cmdlist_atomic_commit(struct spacemit_crtc *a_crtc)
 	u8 crtc_id = drm_crtc_index(crtc);
 	u8 dev_id = a_crtc->dev_id;
 
-	drm_dbg(crtc->dev, "cmdlist group = %d\n",
-		hwdev->rdma_nums + crtc_id);
+	drm_dbg(crtc->dev, "cmdlist group = %d\n", hwdev->rdma_nums + crtc_id);
 	cur_cl = priv->cmdlist_groups[hwdev->rdma_nums + crtc_id];
 	while (cur_cl) {
 		hwdev->cmdlist_fill_conf_row(cur_cl, hwdev, dev_id);

@@ -4,7 +4,9 @@ config DRM_SPACEMIT
 	tristate "DRM support for SpacemiT display controllers"
 	depends on DRM && OF && MMU
 	depends on ARCH_SPACEMIT || COMPILE_TEST
+	select DRM_BRIDGE_CONNECTOR
 	select DRM_CLIENT_SELECTION
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_GEM_SHMEM_HELPER
 	select REGMAP_MMIO
@@ -35,3 +37,11 @@ config SPACEMIT_INNO_DP
 	  DisplayPort connector.
 
 	  If M is selected the module will be called spacemit-inno-dp.
+
+config SPACEMIT_HDMI
+	tristate "HDMI transmitter support for SpacemiT K1"
+	depends on DRM_SPACEMIT
+	select DRM_KMS_HELPER
+	help
+	  Support for the HDMI transmitter block found on the SpacemiT K1
+	  family.  Say M here to build it as a module called spacemit_hdmi.

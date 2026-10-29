@@ -33,10 +33,10 @@ static void spacemit_drm_atomic_commit_tail(struct drm_atomic_commit *old_state)
 					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	/*
-	 * Flip first, hw_done second: the cmdlist engine reads the old
-	 * state's DMA buffers until the frame boundary, and hw_done both
-	 * releases the next commit to start programming and lets the old
-	 * state (with those buffers) be torn down.
+	 * Flip first, hw_done second: this driver sends the vblank event from
+	 * its vsync interrupt, and drm_atomic_helper_commit_hw_done() warns if
+	 * the state's event is still pending.  Waiting also keeps the cmdlist
+	 * engine from reading the old DMA buffers after they are freed.
 	 */
 	drm_atomic_helper_wait_for_flip_done(dev, old_state);
 
@@ -50,7 +50,13 @@ static const struct drm_mode_config_helper_funcs spacemit_drm_mode_config_helper
 };
 
 static const struct drm_mode_config_funcs spacemit_drm_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create,
+	/*
+	 * _with_dirty: the fbdev client's damage handler only commits when the
+	 * framebuffer carries a .dirty op.  With plain drm_gem_fb_create the
+	 * console's writes changed the buffer and never reached the display,
+	 * which is what made fbcon look like it was updating in chunks.
+	 */
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -65,7 +71,7 @@ int spacemit_drm_mode_config_init(struct drm_device *drm)
 
 	drm->mode_config.min_width = 1;
 	drm->mode_config.min_height = 1;
-	/* K3 user manual: each DPU scans out at most 3840x2160@60 */
+	/* Saturn user manual: each DPU scans out at most 3840x2160@60 */
 	drm->mode_config.max_width = 3840;
 	drm->mode_config.max_height = 2160;
 

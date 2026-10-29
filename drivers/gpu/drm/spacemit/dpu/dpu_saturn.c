@@ -273,7 +273,7 @@ void spacemit_cfg_rdy_timer_handler(struct timer_list *t)
 	}
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 
-	drm_crtc_vblank_put(crtc);
+	spacemit_crtc_vblank_put(a_crtc);
 }
 
 static void saturn_ctrl_cfg_ready(struct spacemit_crtc *a_crtc, bool enable)
@@ -359,7 +359,7 @@ static inline void dpu_isr_vblank(struct spacemit_crtc *a_crtc, bool *flip)
 	}
 	spin_unlock(&drm->event_lock);
 
-	drm_crtc_vblank_put(crtc);
+	spacemit_crtc_vblank_put(a_crtc);
 }
 
 u32 saturn_conf_dpuctrl_rdma(struct spacemit_crtc *a_crtc)
@@ -441,7 +441,7 @@ static void dpu_run(struct drm_crtc *crtc,
 	/* flush all config register writes before CFG_RDY is raised */
 	mb();
 
-	drm_crtc_vblank_get(crtc);
+	spacemit_crtc_vblank_get(a_crtc);
 	if (hwdev->enable_cfg_irq)
 		hwdev->enable_cfg_irq(a_crtc, hwdev, true);
 

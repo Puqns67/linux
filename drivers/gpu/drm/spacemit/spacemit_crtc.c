@@ -32,7 +32,9 @@
 #include "spacemit_cmdlist.h"
 #include "spacemit_dmmu.h"
 #include "spacemit_drm.h"
+#include <linux/of_reserved_mem.h>
 #include "spacemit_crtc.h"
+#include "dpu/dpu_k1.h"
 #include "dpu/dpu_saturn.h"
 #include "dpu/dpu_trace.h"
 
@@ -45,7 +47,7 @@ static void saturn_count_rdma_use(struct drm_crtc_state *crtc_state)
 {
 	struct drm_plane *plane;
 	struct spacemit_crtc_state *spacemit_state =
-			to_spacemit_crtc_state(crtc_state);
+		to_spacemit_crtc_state(crtc_state);
 	struct spacemit_crtc_rdma *rdmas = spacemit_state->rdmas;
 	u32 rdma_id = 0;
 	const struct drm_plane_state *pstate;
@@ -61,7 +63,7 @@ static int spacemit_crtc_atomic_check_fbmem(struct drm_crtc *crtc,
 					    struct drm_crtc_state *crtc_state)
 {
 	struct spacemit_crtc_rdma *rdmas =
-			to_spacemit_crtc_state(crtc_state)->rdmas;
+		to_spacemit_crtc_state(crtc_state)->rdmas;
 	struct spacemit_crtc *a_crtc = to_spacemit_crtc(crtc);
 	struct spacemit_drm_private *priv = crtc->dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
@@ -71,11 +73,11 @@ static int spacemit_crtc_atomic_check_fbmem(struct drm_crtc *crtc,
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		u32 rdma_id = to_spacemit_plane_state(pstate)->rdma_id;
 		u32 layer_fbcmem_size =
-				to_spacemit_plane_state(pstate)->fbcmem_size;
+			to_spacemit_plane_state(pstate)->fbcmem_size;
 
 		if (rdma_id != RDMA_INVALID_ID)
-			rdmas[rdma_id].fbcmem.size = max(layer_fbcmem_size,
-				rdmas[rdma_id].fbcmem.size);
+			rdmas[rdma_id].fbcmem.size = max(
+				layer_fbcmem_size, rdmas[rdma_id].fbcmem.size);
 	}
 
 	return a_crtc->core->adjust_rdma_fbcmem(hwdev, rdmas);
@@ -103,8 +105,8 @@ static void spacemit_crtc_atomic_enable(struct drm_crtc *crtc,
 		ret = reset_control_bulk_assert(ARRAY_SIZE(priv->pipe_resets),
 						priv->pipe_resets);
 		if (ret)
-			dev_warn(a_crtc->dev,
-				 "failed to assert resets: %d\n", ret);
+			dev_warn(a_crtc->dev, "failed to assert resets: %d\n",
+				 ret);
 		usleep_range(10000, 20000);
 		a_crtc->first_modeset = false;
 	}
@@ -141,6 +143,8 @@ static void spacemit_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spacemit_crtc_uninit(a_crtc);
 
+	/* A commit that never reached a vsync still holds its reference. */
+	spacemit_crtc_vblank_put(a_crtc);
 	drm_crtc_vblank_off(&a_crtc->crtc);
 
 	/*
@@ -174,7 +178,7 @@ static int spacemit_crtc_atomic_check(struct drm_crtc *crtc,
 				      struct drm_atomic_commit *atomic_state)
 {
 	struct drm_crtc_state *state =
-			drm_atomic_get_new_crtc_state(atomic_state, crtc);
+		drm_atomic_get_new_crtc_state(atomic_state, crtc);
 	struct spacemit_crtc_state *cstate = to_spacemit_crtc_state(state);
 	struct spacemit_crtc *a_crtc = to_spacemit_crtc(crtc);
 	int ret = 0;
@@ -209,8 +213,8 @@ static void spacemit_crtc_atomic_flush(struct drm_crtc *crtc,
 				       struct drm_atomic_commit *state)
 {
 	struct spacemit_crtc *a_crtc = to_spacemit_crtc(crtc);
-	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
-		crtc);
+	struct drm_crtc_state *old_state =
+		drm_atomic_get_old_crtc_state(state, crtc);
 	int idx;
 
 	if (!drm_dev_enter(crtc->dev, &idx))
@@ -264,8 +268,7 @@ static void spacemit_crtc_destroy_state(struct drm_crtc *crtc,
 		__drm_atomic_helper_crtc_destroy_state(state);
 		a_crtc = to_spacemit_crtc(crtc);
 		if (spacemit_state->cl.va)
-			dma_free_coherent(a_crtc->dev,
-					  spacemit_state->cl.size,
+			dma_free_coherent(a_crtc->dev, spacemit_state->cl.size,
 					  spacemit_state->cl.va,
 					  spacemit_state->cl.pa);
 		kfree(spacemit_state->rdmas);
@@ -342,8 +345,10 @@ static void spacemit_crtc_put_port(struct drm_device *drm, void *port)
 	of_node_put(port);
 }
 
-static int spacemit_crtc_bind_init(struct drm_device *drm, struct drm_crtc *crtc,
-				   struct drm_plane *primary, struct device_node *port)
+static int spacemit_crtc_bind_init(struct drm_device *drm,
+				   struct drm_crtc *crtc,
+				   struct drm_plane *primary,
+				   struct device_node *port)
 {
 	int err;
 
@@ -370,8 +375,7 @@ static int spacemit_crtc_bind_init(struct drm_device *drm, struct drm_crtc *crtc
 	return 0;
 }
 
-int spacemit_crtc_run(struct drm_crtc *crtc,
-		      struct drm_crtc_state *old_state)
+int spacemit_crtc_run(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct spacemit_crtc *a_crtc = to_spacemit_crtc(crtc);
 
@@ -387,8 +391,9 @@ static int spacemit_crtc_init(struct spacemit_crtc *a_crtc)
 {
 	trace_spacemit_crtc_init(a_crtc->dev_id);
 
-	if (a_crtc->core && a_crtc->core->init)
+	if (a_crtc->core && a_crtc->core->init) {
 		a_crtc->core->init(a_crtc);
+	}
 
 	a_crtc->is_1st_f = true;
 
@@ -442,7 +447,10 @@ static int spacemit_dpu_hw_resources_init(struct spacemit_drm_private *priv,
 	int n_rstc;
 	int ret;
 
-	ret = dpu_parse_clocks(dev, &priv->clk_ctx);
+	if (of_device_is_compatible(dev->of_node, "spacemit,k1-saturn-dpu"))
+		ret = k1_parse_dt_clocks(dev, &priv->clk_ctx);
+	else
+		ret = dpu_parse_clocks(dev, &priv->clk_ctx);
 	if (ret)
 		return ret;
 
@@ -456,6 +464,25 @@ static int spacemit_dpu_hw_resources_init(struct spacemit_drm_private *priv,
 							     priv->pipe_resets);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get resets\n");
+
+	/*
+	 * K1: the only reset wired to the DPU is the HDMI one, and this driver
+	 * owns it (the transmitter must not take a reference, or asserting it
+	 * here would only drop a shared refcount and never reach the line).
+	 */
+	priv->hdmi_reset =
+		devm_reset_control_get_optional_exclusive(dev, "hdmi_reset");
+	if (IS_ERR(priv->hdmi_reset))
+		return dev_err_probe(dev, PTR_ERR(priv->hdmi_reset),
+				     "failed to get hdmi reset\n");
+
+	/*
+	 * Release it once here: the transmitter registers must be readable
+	 * before the first modeset (the initial hotplug detect reads them),
+	 * and dpu_pm_suspend()/resume() keep the balance from then on.
+	 */
+	if (priv->hdmi_reset)
+		reset_control_deassert(priv->hdmi_reset);
 
 	priv->irq_online = platform_get_irq_byname(pdev, "online");
 	if (priv->irq_online < 0)
@@ -476,11 +503,11 @@ static int spacemit_dpu_hw_resources_init(struct spacemit_drm_private *priv,
 }
 
 static const struct regmap_config spacemit_dpu_regmap_config = {
-	.name		= "dpu",
-	.reg_bits	= 32,
-	.val_bits	= 32,
-	.reg_stride	= 4,
-	.max_register	= 0x53ffc,	/* 0x54000-byte DPU MMIO from binding */
+	.name = "dpu",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = 0x53ffc, /* 0x54000-byte DPU MMIO from binding */
 };
 
 /* Bind-scope wrapper so devm_drm_dev_alloc has a struct to embed into. */
@@ -506,8 +533,8 @@ static int spacemit_drm_master_bind(struct device *dev)
 		return ret;
 	}
 
-	kms = devm_drm_dev_alloc(dev, &spacemit_drm_drv,
-				 struct spacemit_kms, drm);
+	kms = devm_drm_dev_alloc(dev, &spacemit_drm_drv, struct spacemit_kms,
+				 drm);
 	if (IS_ERR(kms))
 		return PTR_ERR(kms);
 	drm = &kms->drm;
@@ -531,13 +558,20 @@ static int spacemit_drm_master_bind(struct device *dev)
 	a_crtc->aclk = DPU_AXICLK_DEFAULT;
 	a_crtc->irq_online = priv->irq_online;
 
-	/* Both K3 DPU instances are COMPOSER1 in the Saturn IRQ tables. */
-	a_crtc->dev_id = COMPOSER1;
+	/*
+	 * The DPU instance id is the Saturn IRQ-table index: K3 exposes both
+	 * pipelines as COMPOSER1, while K1's HDMI pipeline is ONLINE2.
+	 */
+	if (of_device_is_compatible(dev->of_node, "spacemit,k1-saturn-dpu")) {
+		a_crtc->dev_id = COMPOSER2;
+		a_crtc->core = &dpu_k1_ops;
+	} else {
+		a_crtc->dev_id = COMPOSER1;
+		a_crtc->core = &dpu_saturn_ops;
+	}
 
-	/* The K3 pipeline always hands RGB888 to the DP/eDP encoder. */
+	/* Both pipelines hand RGB888 to the output block. */
 	a_crtc->out_format = OUTFMT_RGB888;
-
-	a_crtc->core = &dpu_saturn_ops;
 
 	timer_setup(&a_crtc->cfg_rdy_timer, spacemit_cfg_rdy_timer_handler, 0);
 
@@ -651,6 +685,8 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 	const struct spacemit_hw_device *hwdev_template;
 	struct spacemit_drm_private *priv;
 	struct device_node *np = dev->of_node;
+	struct regmap_config *regmap_cfg;
+	struct resource *res;
 	int ret;
 
 	if (!np) {
@@ -672,26 +708,50 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 	hwdev_template = device_get_match_data(dev);
 	if (!hwdev_template)
 		return -ENODEV;
-	priv->hwdev = devm_kmemdup(dev, hwdev_template,
-				   sizeof(*hwdev_template), GFP_KERNEL);
+	priv->hwdev = devm_kmemdup(dev, hwdev_template, sizeof(*hwdev_template),
+				   GFP_KERNEL);
 	if (!priv->hwdev)
 		return -ENOMEM;
 
-	priv->cmdlist_groups = devm_kcalloc(dev,
-		priv->hwdev->rdma_nums + priv->hwdev->crtc_nums,
+	priv->cmdlist_groups = devm_kcalloc(
+		dev, priv->hwdev->rdma_nums + priv->hwdev->crtc_nums,
 		sizeof(*priv->cmdlist_groups), GFP_KERNEL);
 	if (!priv->cmdlist_groups)
 		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
 
 	priv->hwdev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->hwdev->base))
 		return PTR_ERR(priv->hwdev->base);
 
-	priv->hwdev->regmap = devm_regmap_init_mmio(dev, priv->hwdev->base,
-		&spacemit_dpu_regmap_config);
+	/*
+	 * The two SoCs describe different MMIO windows, so derive the regmap
+	 * bound from the resource instead of the K3-sized constant.
+	 */
+	regmap_cfg = devm_kmemdup(dev, &spacemit_dpu_regmap_config,
+				  sizeof(*regmap_cfg), GFP_KERNEL);
+	if (!regmap_cfg)
+		return -ENOMEM;
+	regmap_cfg->max_register = resource_size(res) - sizeof(u32);
+
+	priv->hwdev->regmap =
+		devm_regmap_init_mmio(dev, priv->hwdev->base, regmap_cfg);
 	if (IS_ERR(priv->hwdev->regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->hwdev->regmap),
 				     "failed to init DPU regmap\n");
+
+	/*
+	 * Attach the dedicated DMA pool the devicetree reserves for the display
+	 * MMU tables and command lists.  Without it those buffers come from the
+	 * generic pool, which the command-list fetch engine cannot read.
+	 */
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret,
+				     "failed to attach DPU DMA pool\n");
 
 	ret = spacemit_dpu_hw_resources_init(priv, pdev);
 	if (ret)
@@ -702,6 +762,7 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 
 static void spacemit_dpu_remove(struct platform_device *pdev)
 {
+	of_reserved_mem_device_release(&pdev->dev);
 	component_master_del(&pdev->dev, &spacemit_drm_master_ops);
 }
 
@@ -748,13 +809,30 @@ static int dpu_pm_resume(struct device *dev)
 	struct spacemit_crtc *a_crtc = priv->a_crtc;
 	int ret;
 
+	/*
+	 * Pulse the DPU/transmitter reset: after a hotplug the DPU can come
+	 * back with its frame timing stopped (CFG_RDY never consumed) and
+	 * nothing in software gets it going again.  It must be a pulse - the
+	 * line also resets the transmitter's hotplug detector, which has to
+	 * stay alive while the pipeline is down.
+	 */
+	if (priv->hdmi_reset) {
+		reset_control_assert(priv->hdmi_reset);
+		udelay(10);
+		reset_control_deassert(priv->hdmi_reset);
+	}
+
+	/*
+	 * Clock the block before releasing the resets: a deassert into a
+	 * gated block has no clock edge to propagate on.
+	 */
+	if (a_crtc->core && a_crtc->core->enable_clk)
+		a_crtc->core->enable_clk(a_crtc);
+
 	ret = reset_control_bulk_deassert(ARRAY_SIZE(priv->pipe_resets),
 					  priv->pipe_resets);
 	if (ret)
 		dev_warn(dev, "failed to deassert resets: %d\n", ret);
-
-	if (a_crtc->core && a_crtc->core->enable_clk)
-		a_crtc->core->enable_clk(a_crtc);
 
 	return 0;
 }
@@ -763,6 +841,10 @@ static const struct of_device_id dpu_match_table[] = {
 	{
 		.compatible = "spacemit,k3-saturn-dpu",
 		.data = &k3_saturn_dpu,
+	},
+	{
+		.compatible = "spacemit,k1-saturn-dpu",
+		.data = &k1_saturn_dpu,
 	},
 	{},
 };

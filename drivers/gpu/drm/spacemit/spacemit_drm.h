@@ -24,6 +24,13 @@ struct dpu_clk_context {
 	struct clk *escclk;
 	struct clk *aclk;
 	struct clk *dscclk;
+	/* K1 only: the pixel/HP/SPI clock set the K1 binding describes. */
+	struct clk *hclk;
+	struct clk *spiclk;
+	struct clk *spi_hbus;
+	struct clk *spibus;
+	struct clk *spi_aclk;
+	struct clk *hmclk;
 };
 
 /**
@@ -37,7 +44,11 @@ struct dpu_clk_context {
  * @cmdlist_groups: Pool of per-pipeline cmdlist groups.
  * @clk_ctx: The DPU's clocks, acquired once at probe.
  * @pipe_resets: The DPU reset lines, in assert order; bulk-deassert
- *		 releases them in reverse.
+ *		 releases them in reverse.  K1 has none of these names, so
+ *		 they are optional and usualy absent there.
+ * @hdmi_reset: K1's only DPU reset, shared with the HDMI transmitter;
+ *		asserted while the pipeline is down so a re-enable starts from a
+ *		known state (the vendor driver does the same).
  * @irq_online: Online-compose IRQ; requested disabled, enabled at bind.
  */
 struct spacemit_drm_private {
@@ -49,6 +60,7 @@ struct spacemit_drm_private {
 
 	struct dpu_clk_context clk_ctx;
 	struct reset_control_bulk_data pipe_resets[5];
+	struct reset_control *hdmi_reset;
 	int irq_online;
 };
 

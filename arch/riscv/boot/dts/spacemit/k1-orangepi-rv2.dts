@@ -9,6 +9,7 @@
 #include "k1.dtsi"
 #include "k1-opp.dtsi"
 #include "k1-pinctrl.dtsi"
+#include "k1-display.dtsi"
 
 / {
 	model = "OrangePi RV2";
@@ -536,4 +537,13 @@
 		peer-hub = <&hub_2_0>;
 		vdd-supply = <&vcc_5v0>;
 	};
+};
+
+/* The RV2 routes the DPU1 online compositor to the HDMI connector. */
+&dpu_hdmi {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
 };
